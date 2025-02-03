@@ -39,12 +39,12 @@ func (s *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns
 }
 
 func (s *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
-	// POST /linkup/certificate-dns
+	// PUT /linkup/certificate-dns
 	panic("unimplemented")
 }
 
 func (s *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
-	// PUT /linkup/certificate-dns
+	// POST /linkup/certificate-dns
 	panic("unimplemented")
 }
 
