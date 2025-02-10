@@ -1,7 +1,12 @@
 package caddydnslinkup
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -25,6 +30,7 @@ func init() {
 }
 
 type Provider struct {
+	client    *http.Client       `json:"-"`
 	Logger    *zap.SugaredLogger `json:"-"`
 	ctx       context.Context
 	WorkerUrl string `json:"worker_url,omitempty"`
@@ -33,24 +39,62 @@ type Provider struct {
 
 // TODO: Do we want to listen to these zone? I think so, but confirm
 
-func (s *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
-	// DELETE /linkup/certificate-dns
-	panic("unimplemented")
+func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
+	body := map[string]interface{}{"zone_id": zone, "records": recs}
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return []libdns.Record{}, err
+	}
+
+	req, err := http.NewRequest("DELETE", fmt.Sprintf("%s/linkup/certificate-dns", p.WorkerUrl), bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return []libdns.Record{}, err
+	}
+
+	return sendLibDnsLinkupRequest(p.client, req)
 }
 
-func (s *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
-	// PUT /linkup/certificate-dns
-	panic("unimplemented")
+func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
+	body := map[string]interface{}{"zone_id": zone, "records": recs}
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return []libdns.Record{}, err
+	}
+
+	req, err := http.NewRequest("PUT", fmt.Sprintf("%s/linkup/certificate-dns", p.WorkerUrl), bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return []libdns.Record{}, err
+	}
+
+	return sendLibDnsLinkupRequest(p.client, req)
 }
 
-func (s *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
-	// POST /linkup/certificate-dns
-	panic("unimplemented")
+func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
+	body := map[string]interface{}{"zone_id": zone, "records": recs}
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return []libdns.Record{}, err
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/linkup/certificate-dns", p.WorkerUrl), bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return []libdns.Record{}, err
+	}
+
+	return sendLibDnsLinkupRequest(p.client, req)
 }
 
-func (s *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
-	// GET /linkup/certificate-dns
-	panic("unimplemented")
+func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/linkup/certificate-dns", p.WorkerUrl), nil)
+	if err != nil {
+		return []libdns.Record{}, err
+	}
+
+	q := req.URL.Query()
+	q.Add("zone_id", zone)
+	req.URL.RawQuery = q.Encode()
+
+	return sendLibDnsLinkupRequest(p.client, req)
 }
 
 func (Provider) CaddyModule() caddy.ModuleInfo {
@@ -62,7 +106,7 @@ func (Provider) CaddyModule() caddy.ModuleInfo {
 	}
 }
 
-func (s *Provider) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
+func (p *Provider) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 	for d.Next() {
 		key := d.Val()
 		var value string
@@ -72,15 +116,15 @@ func (s *Provider) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 
 		switch key {
 		case "worker_url":
-			s.WorkerUrl = value
+			p.WorkerUrl = value
 		case "token":
-			s.Token = value
+			p.Token = value
 		}
 	}
 	return nil
 }
 
-func (s *Provider) Provision(ctx caddy.Context) error {
+func (p *Provider) Provision(ctx caddy.Context) error {
 	// s.Logger = ctx.Logger(s).Sugar()
 	// s.ctx = ctx.Context
 
@@ -93,8 +137,33 @@ func (s *Provider) Provision(ctx caddy.Context) error {
 	// ```
 	// which would replace `{env.LINKUP_WORKER_URL}` with the environemnt variable value
 	// of LINKUP_WORKER_URL at runtime.
-	s.WorkerUrl = caddy.NewReplacer().ReplaceAll(s.WorkerUrl, "")
-	s.Token = caddy.NewReplacer().ReplaceAll(s.Token, "")
+	p.WorkerUrl = caddy.NewReplacer().ReplaceAll(p.WorkerUrl, "")
+	p.Token = caddy.NewReplacer().ReplaceAll(p.Token, "")
+
+	p.client = http.DefaultClient
 
 	return nil
+}
+
+func sendLibDnsLinkupRequest(client *http.Client, req *http.Request) ([]libdns.Record, error) {
+	resp, err := client.Do(req)
+	if err != nil {
+		return []libdns.Record{}, err
+	}
+	defer resp.Body.Close()
+
+	// TODO: Handle not 2xx response
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return []libdns.Record{}, err
+	}
+
+	var records []libdns.Record
+	err = json.Unmarshal(body, &records)
+	if err != nil {
+		return []libdns.Record{}, err
+	}
+
+	return records, nil
 }
