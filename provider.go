@@ -50,6 +50,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns
 	if err != nil {
 		return []libdns.Record{}, err
 	}
+	req.Header.Set("Content-Type", "application/json")
 
 	return sendLibDnsLinkupRequest(p.client, req)
 }
@@ -65,6 +66,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Re
 	if err != nil {
 		return []libdns.Record{}, err
 	}
+	req.Header.Set("Content-Type", "application/json")
 
 	return sendLibDnsLinkupRequest(p.client, req)
 }
@@ -80,6 +82,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns
 	if err != nil {
 		return []libdns.Record{}, err
 	}
+	req.Header.Set("Content-Type", "application/json")
 
 	return sendLibDnsLinkupRequest(p.client, req)
 }
