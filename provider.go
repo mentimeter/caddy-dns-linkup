@@ -78,6 +78,8 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns
 		return []libdns.Record{}, err
 	}
 
+	p.Logger.Infof("Sending %+v to worker", string(jsonBody))
+
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/linkup/certificate-dns", p.WorkerUrl), bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return []libdns.Record{}, err
@@ -143,6 +145,7 @@ func (p *Provider) Provision(ctx caddy.Context) error {
 	p.WorkerUrl = caddy.NewReplacer().ReplaceAll(p.WorkerUrl, "")
 	p.Token = caddy.NewReplacer().ReplaceAll(p.Token, "")
 
+	p.Logger = ctx.Logger(p).Sugar()
 	p.client = http.DefaultClient
 
 	return nil
