@@ -40,7 +40,7 @@ type Provider struct {
 // TODO: Do we want to listen to these zone? I think so, but confirm
 
 func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
-	body := map[string]interface{}{"zone_id": zone, "records": recs}
+	body := map[string]interface{}{"zone": zone, "records": recs}
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return []libdns.Record{}, err
@@ -55,7 +55,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns
 }
 
 func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
-	body := map[string]interface{}{"zone_id": zone, "records": recs}
+	body := map[string]interface{}{"zone": zone, "records": recs}
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return []libdns.Record{}, err
@@ -70,7 +70,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Re
 }
 
 func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
-	body := map[string]interface{}{"zone_id": zone, "records": recs}
+	body := map[string]interface{}{"zone": zone, "records": recs}
 	jsonBody, err := json.Marshal(body)
 	if err != nil {
 		return []libdns.Record{}, err
@@ -91,7 +91,7 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 	}
 
 	q := req.URL.Query()
-	q.Add("zone_id", zone)
+	q.Add("zone", zone)
 	req.URL.RawQuery = q.Encode()
 
 	return sendLibDnsLinkupRequest(p.client, req)
