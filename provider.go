@@ -130,8 +130,8 @@ func (p *Provider) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 }
 
 func (p *Provider) Provision(ctx caddy.Context) error {
-	// s.Logger = ctx.Logger(s).Sugar()
-	// s.ctx = ctx.Context
+	p.Logger = ctx.Logger(p).Sugar()
+	p.ctx = ctx.Context
 
 	// This adds support to the documented Caddy way to get runtime environment variables.
 	// Reference: https://caddyserver.com/docs/caddyfile/concepts#environment-variables
@@ -145,7 +145,6 @@ func (p *Provider) Provision(ctx caddy.Context) error {
 	p.WorkerUrl = caddy.NewReplacer().ReplaceAll(p.WorkerUrl, "")
 	p.Token = caddy.NewReplacer().ReplaceAll(p.Token, "")
 
-	p.Logger = ctx.Logger(p).Sugar()
 	p.client = http.DefaultClient
 
 	return nil
