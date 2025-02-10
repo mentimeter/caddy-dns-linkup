@@ -37,8 +37,6 @@ type Provider struct {
 	Token     string `json:"token,omitempty"`
 }
 
-// TODO: Do we want to listen to these zone? I think so, but confirm
-
 func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
 	body := map[string]interface{}{"zone": zone, "records": recs}
 	jsonBody, err := json.Marshal(body)
