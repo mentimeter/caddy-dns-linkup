@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -184,27 +183,7 @@ func sendLibDnsLinkupRequest(logger *zap.SugaredLogger, client *http.Client, req
 		return []libdns.Record{}, err
 	}
 
-	for i, _ := range records {
-		records[i].Name = NameRelativeToZone(records[i].Name, zone)
-	}
-
 	logger.Infow("Formatted records", "records", records)
 
 	return records, nil
-}
-
-// FQDN - Fully Qualified Domain Name
-//
-// Example:
-//
-//	fqdn := "api.mentimeter.com."
-//	zone := "mentimeter.com"
-//	NameRelativeToZone(fqdn, zone) == "api"
-func NameRelativeToZone(fqdn string, zone string) string {
-	trimmedFqdn := strings.TrimSuffix(fqdn, ".")
-	trimmedZone := strings.TrimSuffix(zone, ".")
-
-	fqdnRelativeToZone := strings.TrimSuffix(trimmedFqdn, trimmedZone)
-
-	return strings.TrimSuffix(fqdnRelativeToZone, ".")
 }
