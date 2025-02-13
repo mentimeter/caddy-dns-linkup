@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/caddyserver/caddy/v2"
 	"github.com/caddyserver/caddy/v2/caddyconfig/caddyfile"
@@ -50,7 +51,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	return sendLibDnsLinkupRequest(p.Logger, p.client, req)
+	return sendLibDnsLinkupRequest(p.Logger, p.client, req, zone)
 }
 
 func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
@@ -66,7 +67,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Re
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	return sendLibDnsLinkupRequest(p.Logger, p.client, req)
+	return sendLibDnsLinkupRequest(p.Logger, p.client, req, zone)
 }
 
 func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
@@ -82,7 +83,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	return sendLibDnsLinkupRequest(p.Logger, p.client, req)
+	return sendLibDnsLinkupRequest(p.Logger, p.client, req, zone)
 }
 
 func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
@@ -95,7 +96,7 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 	q.Add("zone", zone)
 	req.URL.RawQuery = q.Encode()
 
-	return sendLibDnsLinkupRequest(p.Logger, p.client, req)
+	return sendLibDnsLinkupRequest(p.Logger, p.client, req, zone)
 }
 
 func (Provider) CaddyModule() caddy.ModuleInfo {
@@ -146,7 +147,7 @@ func (p *Provider) Provision(ctx caddy.Context) error {
 	return nil
 }
 
-func sendLibDnsLinkupRequest(logger *zap.SugaredLogger, client *http.Client, req *http.Request) ([]libdns.Record, error) {
+func sendLibDnsLinkupRequest(logger *zap.SugaredLogger, client *http.Client, req *http.Request, zone string) ([]libdns.Record, error) {
 	reqBody, err := io.ReadAll(req.Body)
 	if err != nil {
 		return []libdns.Record{}, err
@@ -173,15 +174,37 @@ func sendLibDnsLinkupRequest(logger *zap.SugaredLogger, client *http.Client, req
 		return []libdns.Record{}, err
 	}
 
+	logger.Infow("Got response from worker.",
+		"body", string(body),
+	)
+
 	var records []libdns.Record
 	err = json.Unmarshal(body, &records)
 	if err != nil {
 		return []libdns.Record{}, err
 	}
 
-	logger.Infow("Got response from worker.",
-		"records", records,
-	)
+	for i, _ := range records {
+		records[i].Name = NameRelativeToZone(records[i].Name, zone)
+	}
+
+	logger.Infow("Formatted records", "records", records)
 
 	return records, nil
+}
+
+// FQDN - Fully Qualified Domain Name
+//
+// Example:
+//
+//	fqdn := "api.mentimeter.com."
+//	zone := "mentimeter.com"
+//	NameRelativeToZone(fqdn, zone) == "api"
+func NameRelativeToZone(fqdn string, zone string) string {
+	trimmedFqdn := strings.TrimSuffix(fqdn, ".")
+	trimmedZone := strings.TrimSuffix(zone, ".")
+
+	fqdnRelativeToZone := strings.TrimSuffix(trimmedFqdn, trimmedZone)
+
+	return strings.TrimSuffix(fqdnRelativeToZone, ".")
 }
