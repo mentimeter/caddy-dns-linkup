@@ -50,7 +50,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	return sendLibDnsLinkupRequest(p.client, req)
+	return sendLibDnsLinkupRequest(p.Logger, p.client, req)
 }
 
 func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
@@ -66,7 +66,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Re
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	return sendLibDnsLinkupRequest(p.client, req)
+	return sendLibDnsLinkupRequest(p.Logger, p.client, req)
 }
 
 func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns.Record) ([]libdns.Record, error) {
@@ -76,15 +76,13 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns
 		return []libdns.Record{}, err
 	}
 
-	p.Logger.Infof("Sending %+v to worker", string(jsonBody))
-
 	req, err := http.NewRequest("POST", fmt.Sprintf("%s/linkup/certificate-dns", p.WorkerUrl), bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return []libdns.Record{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	return sendLibDnsLinkupRequest(p.client, req)
+	return sendLibDnsLinkupRequest(p.Logger, p.client, req)
 }
 
 func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record, error) {
@@ -97,7 +95,7 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 	q.Add("zone", zone)
 	req.URL.RawQuery = q.Encode()
 
-	return sendLibDnsLinkupRequest(p.client, req)
+	return sendLibDnsLinkupRequest(p.Logger, p.client, req)
 }
 
 func (Provider) CaddyModule() caddy.ModuleInfo {
@@ -148,7 +146,20 @@ func (p *Provider) Provision(ctx caddy.Context) error {
 	return nil
 }
 
-func sendLibDnsLinkupRequest(client *http.Client, req *http.Request) ([]libdns.Record, error) {
+func sendLibDnsLinkupRequest(logger *zap.SugaredLogger, client *http.Client, req *http.Request) ([]libdns.Record, error) {
+	reqBody, err := io.ReadAll(req.Body)
+	if err != nil {
+		return []libdns.Record{}, err
+	}
+
+	req.Body = io.NopCloser(bytes.NewBuffer(reqBody))
+
+	logger.Infow("Sending request to worker.",
+		"method", req.Method,
+		"url", req.URL.String(),
+		"body", string(reqBody),
+	)
+
 	resp, err := client.Do(req)
 	if err != nil {
 		return []libdns.Record{}, err
@@ -167,6 +178,10 @@ func sendLibDnsLinkupRequest(client *http.Client, req *http.Request) ([]libdns.R
 	if err != nil {
 		return []libdns.Record{}, err
 	}
+
+	logger.Infow("Got response from worker.",
+		"records", records,
+	)
 
 	return records, nil
 }
