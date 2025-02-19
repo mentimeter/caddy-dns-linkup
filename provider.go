@@ -50,6 +50,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns
 		return []libdns.Record{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.Token))
 
 	return sendLibDnsLinkupRequest(p.Logger, p.client, req, zone)
 }
@@ -66,6 +67,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Re
 		return []libdns.Record{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.Token))
 
 	return sendLibDnsLinkupRequest(p.Logger, p.client, req, zone)
 }
@@ -82,6 +84,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns
 		return []libdns.Record{}, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.Token))
 
 	return sendLibDnsLinkupRequest(p.Logger, p.client, req, zone)
 }
@@ -91,6 +94,7 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 	if err != nil {
 		return []libdns.Record{}, err
 	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.Token))
 
 	q := req.URL.Query()
 	q.Add("zone", zone)
