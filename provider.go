@@ -1,4 +1,4 @@
-package caddydnslinkup
+package provider
 
 import (
 	"bytes"
@@ -14,6 +14,13 @@ import (
 	"github.com/libdns/libdns"
 	"go.uber.org/zap"
 )
+
+// This value is filled by the Go linker during the build process.
+// For example:
+//
+//	XCADDY_GO_BUILD_FLAGS='-ldflags="-X github.com/mentimeter/caddy-dns-linkup.linkupVersion=2.1.0"' xcaddy build \
+//	    --with github.com/mentimeter/caddy-dns-linkup
+var linkupVersion string
 
 // Interface guards
 var (
@@ -51,6 +58,7 @@ func (p *Provider) DeleteRecords(ctx context.Context, zone string, recs []libdns
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.Token))
+	req.Header.Set("x-linkup-version", linkupVersion)
 
 	return sendLibDnsLinkupRequest(p.Logger, p.client, req, zone)
 }
@@ -68,6 +76,7 @@ func (p *Provider) SetRecords(ctx context.Context, zone string, recs []libdns.Re
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.Token))
+	req.Header.Set("x-linkup-version", linkupVersion)
 
 	return sendLibDnsLinkupRequest(p.Logger, p.client, req, zone)
 }
@@ -85,6 +94,7 @@ func (p *Provider) AppendRecords(ctx context.Context, zone string, recs []libdns
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.Token))
+	req.Header.Set("x-linkup-version", linkupVersion)
 
 	return sendLibDnsLinkupRequest(p.Logger, p.client, req, zone)
 }
@@ -95,6 +105,7 @@ func (p *Provider) GetRecords(ctx context.Context, zone string) ([]libdns.Record
 		return []libdns.Record{}, err
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", p.Token))
+	req.Header.Set("x-linkup-version", linkupVersion)
 
 	q := req.URL.Query()
 	q.Add("zone", zone)
@@ -133,6 +144,8 @@ func (p *Provider) UnmarshalCaddyfile(d *caddyfile.Dispenser) error {
 func (p *Provider) Provision(ctx caddy.Context) error {
 	p.Logger = ctx.Logger(p).Sugar()
 	p.ctx = ctx.Context
+
+	p.Logger.Infof("Caddy build for Linkup version: %s", linkupVersion)
 
 	// This adds support to the documented Caddy way to get runtime environment variables.
 	// Reference: https://caddyserver.com/docs/caddyfile/concepts#environment-variables
